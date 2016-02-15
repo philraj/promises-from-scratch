@@ -1,48 +1,56 @@
 //promise constructor
-function MyPromise (resolver) {
-  console.log('constructing promise');
-  var resolveCallback;
+function MyPromise (executor) {
+  console.log('entering mypromise constructor!');
+  var value
+  var isResolved = false
+  var isRejected = false
 
   function resolve (val) {
-    resolveCallback(val)
+    value = val
+    isResolved = true
   }
-  console.log('calling resolver')
-  resolver(resolve)
 
-  this.then = function (callback) {
-    console.log('calling then');
-    resolveCallback = callback
-    return new MyPromise(callback)
+  function reject (val) {
+    value = val
+    isRejected = true
+  }
+
+  executor(resolve, reject)
+
+  this.then = function thenFunc (resolveCallback, rejectCallback) {
+    if (isResolved) {
+      resolveCallback(value)
+    }
+    else if (isRejected) {
+      rejectCallback(value)
+    }
+    else {
+      setTimeout(thenFunc.bind(null, resolveCallback, rejectCallback), 500)
+    }
   }
 }
 
-var promise = new MyPromise(function(resolve){
-  setTimeout(function(){
-    resolve("Resolved.")
-  }, 1000)
+var promise = new MyPromise( function (resolve, reject) {
+  var val = Math.random()
+  console.log(val);
+  if (val > 0.5) {
+    setTimeout( function() {
+      resolve("Resolved:" + val)
+    }, 1000)
+  }
+  else {
+    setTimeout( function() {
+      reject("Rejected:" + val)
+    }, 1000)
+  }
 })
 
-promise.then(function(val){
-  console.log('test');
-  console.log(val)
+promise.then( function (val) {
+  setTimeout( function () {
+    console.log(val)
+  }, Math.random() * 2000)
+}, function (val) {
+  setTimeout( function () {
+    console.log(val, "...Sorry!")
+  }, Math.random() * 2000)
 })
-// var promise = new Promise( function(resolve, reject) {
-//   var random = Math.random()
-//   console.log("made random value:", random)
-//
-//   if (random > 0.5) {
-//     setTimeout( function() {
-//       resolve(random)
-//     }, 1000)
-//   } else {
-//     setTimeout( function() {
-//       reject(random)
-//     }, 1000)
-//   }
-// })
-//
-// promise.then( function (val) {
-//   console.log("resolved val:", val)
-// }).then( function (val) {
-//   console.log("???", val)
-// })
