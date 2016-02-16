@@ -47,24 +47,28 @@ var promise = new MyPromise( function(resolve, reject) {
   if (val > 0.5) {
     setTimeout(
       () => resolve("Resolved:" + val),
-      Math.random() * 1000);
+      Math.random() * 1000
+    );
   }
   else {
     setTimeout(
       () => reject("Rejected:" + val),
-      Math.random() * 1000);
+      Math.random() * 1000
+    );
   }
-})
+});
 
 promise.then(
   val => {
     setTimeout(
       () => console.log(val),
-      Math.random() * 2000);
+      Math.random() * 2000
+    );
   },
   val => {
     setTimeout(
       () => console.log(val),
-      Math.random() * 2000);
+      Math.random() * 2000
+    );
   }
 );
