@@ -2,38 +2,40 @@
 function MyPromise (executor) {
   var value;
   var state = 'pending';
-  var resolveCallback, rejectCallback;
+  var resolveCallbacks = [];
+  var rejectCallbacks = [];
 
   function resolve (val) {
-    if (resolveCallback) {
-      resolveCallback(val);
-    }
-    else {
-      value = val;
-      state = 'resolved';
+    value = val;
+    state = 'resolved';
+
+    if (resolveCallbacks.length) {
+      resolveCallbacks.forEach( callback => callback(value) );
     }
   }
 
   function reject (val) {
-    if (rejectCallback) {
-      rejectCallback(val);
-    }
-    else {
-      value = val;
-      state = 'rejected';
+    value = val;
+    state = 'rejected';
+
+    if (rejectCallbacks.length) {
+      rejectCallbacks.forEach( callback => callback(value) );
     }
   }
 
-  this.then = function(res, rej) {
+  this.then = function (resolveCB, rejectCB) {
     if (state = 'pending') {
-      resolveCallback = res;
-      rejectCallback = rej;
+      resolveCallbacks.push(resolveCB);
+
+      if (rejectCB) rejectCallbacks.push(rejectCB);
+      else rejectCallbacks.push( () => { throw new Error(value) });
     }
     else if (state === 'resolved') {
-      res(value);
+      resolveCB(value);
     }
-    else {
-      rej(value);
+    else if (state === 'rejected') {
+      if (rejectCB) rejectCB(value);
+      else throw new Error(value);
     }
   }
 
