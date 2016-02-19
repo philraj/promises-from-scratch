@@ -2,8 +2,8 @@
 function MyPromise (executor) {
   var value;
   var state = 'pending';
-  var successCallbacks = [];
-  var failureCallbacks = [];
+  var resolvers = [];
+  var rejectors = [];
 
   function resolve (val) {
     if (state === 'resolved') return;
@@ -11,8 +11,8 @@ function MyPromise (executor) {
     value = val;
     state = 'resolved';
 
-    if (successCallbacks.length) {
-      successCallbacks.forEach( callback => callback(value) );
+    if (resolvers.length) {
+      resolvers.forEach( callback => callback() );
     }
   }
 
@@ -22,62 +22,87 @@ function MyPromise (executor) {
     value = val;
     state = 'rejected';
 
-    if (failureCallbacks.length) {
-      failureCallbacks.forEach( callback => callback(value) );
+    if (rejectors.length) {
+      rejectors.forEach( callback => callback() );
     }
   }
 
   this.then = function (successCB, failureCB) {
-    // return new MyPromise( function(resolve, reject) {
-    //
-    // });
-    if (state = 'pending') {
-      successCallbacks.push(successCB);
+    return new MyPromise( function (resolve, reject) {
+      if (state = 'pending') {
+        resolvers.push( () => {
+          resolve(successCB(value));
+        });
 
-      if (failureCB) failureCallbacks.push(failureCB);
-      else failureCallbacks.push( () => { throw new Error(value) });
-    }
-    else if (state === 'resolved') {
-      successCB(value);
-    }
-    else if (state === 'rejected') {
-      if (failureCB) failureCB(value);
-      else throw new Error(value);
-    }
+        if (failureCB) {
+          rejectors.push( () => {
+            reject(failureCB(value));
+          });
+        }
+        else {
+          rejectors.push( () => {
+            reject(new Error(value));
+          });
+        }
+      }
+      else if (state === 'resolved') {
+        resolve(successCB(value));
+      }
+      else if (state === 'rejected') {
+        if (failureCB) reject(failureCB(value));
+        else reject(new Error(value));
+      }
+    });
   }
 
   executor(resolve, reject);
 }
 
-var promise = new MyPromise( function(resolve, reject) {
+var promise = new MyPromise( (resolve, reject) => {
   var val = Math.random();
-  console.log(val);
+  console.log(`Promise seeded with value: ` + val);
 
   if (val > 0.5) {
     setTimeout(
-      () => resolve("Resolved:" + val),
-      Math.random() * 1000
+      () => resolve(val),
+      Math.random() * 2000
     );
   }
   else {
     setTimeout(
-      () => reject("Rejected:" + val),
-      Math.random() * 1000
+      () => reject(val),
+      Math.random() * 2000
     );
   }
 });
 
 promise.then(
   val => {
-    setTimeout(
-      () => console.log(val),
-      Math.random() * 2000
-    );
+    console.log(`Resolved:`, val);
+    return val;
   },
   val => {
-    setTimeout(
-      () => console.log(val),
-      Math.random() * 2000
-    );
+    console.log(`Rejected:`, val);
+    return val;
+  }
+).then(
+  val => {
+    setImmediate( () => console.log(`Truncated value: ` + val.toFixed(2)) );
+  },
+  val => {
+    setImmediate( () => console.log(`Truncated value: ` + val.toFixed(2)) );
   }
 );
+
+function setTimeoutPromise (delay, callback) {
+  return new MyPromise ( function (resolve, reject) {
+    setTimeout(
+      () => resolve(callback()),
+      delay
+    );
+  });
+}
+
+setTimeoutPromise(4000, () => {
+  return 123456789;
+}).then( val => console.log(`setTimeoutPromise return value:`, val));
