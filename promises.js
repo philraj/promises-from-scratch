@@ -58,7 +58,7 @@ function MyPromise (executor) {
   executor(resolve, reject);
 }
 
-var promise = new MyPromise( (resolve, reject) => {
+var promise = new MyPromise( function (resolve, reject) {
   var val = Math.random();
   console.log(`Promise seeded with value: ` + val);
 
@@ -94,8 +94,9 @@ promise.then(
   }
 );
 
+
 function setTimeoutPromise (delay, callback) {
-  return new MyPromise ( function (resolve, reject) {
+  return new MyPromise( function (resolve, reject) {
     setTimeout(
       () => resolve(callback()),
       delay
@@ -103,6 +104,5 @@ function setTimeoutPromise (delay, callback) {
   });
 }
 
-setTimeoutPromise(4000, () => {
-  return 123456789;
-}).then( val => console.log(`setTimeoutPromise return value:`, val));
+setTimeoutPromise(4000, () => 123456789)
+.then( val => console.log(`setTimeoutPromise return value:`, val));
