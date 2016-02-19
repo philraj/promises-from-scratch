@@ -6,6 +6,8 @@ function MyPromise (executor) {
   var rejectCallbacks = [];
 
   function resolve (val) {
+    if (state === 'resolved') return;
+
     value = val;
     state = 'resolved';
 
@@ -15,6 +17,8 @@ function MyPromise (executor) {
   }
 
   function reject (val) {
+    if (state === 'rejected') return;
+
     value = val;
     state = 'rejected';
 
@@ -24,6 +28,9 @@ function MyPromise (executor) {
   }
 
   this.then = function (resolveCB, rejectCB) {
+    // return new MyPromise( function(resolve, reject) {
+    //
+    // });
     if (state = 'pending') {
       resolveCallbacks.push(resolveCB);
 
