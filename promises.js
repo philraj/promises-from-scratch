@@ -2,8 +2,8 @@
 function MyPromise (executor) {
   var value;
   var state = 'pending';
-  var resolveCallbacks = [];
-  var rejectCallbacks = [];
+  var successCallbacks = [];
+  var failureCallbacks = [];
 
   function resolve (val) {
     if (state === 'resolved') return;
@@ -11,8 +11,8 @@ function MyPromise (executor) {
     value = val;
     state = 'resolved';
 
-    if (resolveCallbacks.length) {
-      resolveCallbacks.forEach( callback => callback(value) );
+    if (successCallbacks.length) {
+      successCallbacks.forEach( callback => callback(value) );
     }
   }
 
@@ -22,26 +22,26 @@ function MyPromise (executor) {
     value = val;
     state = 'rejected';
 
-    if (rejectCallbacks.length) {
-      rejectCallbacks.forEach( callback => callback(value) );
+    if (failureCallbacks.length) {
+      failureCallbacks.forEach( callback => callback(value) );
     }
   }
 
-  this.then = function (resolveCB, rejectCB) {
+  this.then = function (successCB, failureCB) {
     // return new MyPromise( function(resolve, reject) {
     //
     // });
     if (state = 'pending') {
-      resolveCallbacks.push(resolveCB);
+      successCallbacks.push(successCB);
 
-      if (rejectCB) rejectCallbacks.push(rejectCB);
-      else rejectCallbacks.push( () => { throw new Error(value) });
+      if (failureCB) failureCallbacks.push(failureCB);
+      else failureCallbacks.push( () => { throw new Error(value) });
     }
     else if (state === 'resolved') {
-      resolveCB(value);
+      successCB(value);
     }
     else if (state === 'rejected') {
-      if (rejectCB) rejectCB(value);
+      if (failureCB) failureCB(value);
       else throw new Error(value);
     }
   }
