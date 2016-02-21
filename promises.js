@@ -8,31 +8,17 @@ function MyPromise (executor) {
   function resolve (val) {
     // prevents state from being changed once resolved/rejected
     if (state !== 'pending') return;
-
     // if val is promise-like, handle resolution within its then()
     if (typeof val.then === 'function') {
-      val.then(
-        newVal => {
-          value = newVal;
-          state = 'resolved';
-
-          // if there are resolvers waiting to be called, call each one
-          if (resolvers.length) {
-            resolvers.forEach( callback => setImmediate(callback) );
-          }
-        },
-        err => {
-          reject(err);
-        }
-      );
+      val.then(resolve, reject);
+      return;
     }
-    else {
-      value = val;
-      state = 'resolved';
 
-      if (resolvers.length) {
-        resolvers.forEach( callback => setImmediate(callback) );
-      }
+    value = val; // promise is now permanently resolved to this value
+    state = 'resolved';
+    // if there are resolvers waiting to be called, call each one
+    if (resolvers.length) {
+      resolvers.forEach( callback => setImmediate(callback) );
     }
   }
 
@@ -40,27 +26,15 @@ function MyPromise (executor) {
     if (state !== 'pending') return;
 
     if (typeof val.then === 'function') {
-      val.then(
-        newVal => {
-          resolve(newVal);
-        },
-        err => {
-          value = err;
-          state = 'rejected';
-
-          if (rejectors.length) {
-            rejectors.forEach( callback => setImmediate(callback) );
-          }
-        }
-      );
+      val.then(resolve, reject);
+      return;
     }
-    else {
-      value = val;
-      state = 'rejected';
 
-      if (rejectors.length) {
-        rejectors.forEach( callback => setImmediate(callback) );
-      }
+    value = val;
+    state = 'rejected';
+
+    if (rejectors.length) {
+      rejectors.forEach( callback => setImmediate(callback) );
     }
   }
 
@@ -109,7 +83,6 @@ function MyPromise (executor) {
       }
     });
   }
-
   // Finally, run the function which was passed to the constructor
   executor(resolve, reject);
 }
