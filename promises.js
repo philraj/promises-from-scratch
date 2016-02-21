@@ -2,19 +2,23 @@
 function MyPromise (executor) {
   var value; // value to which the promise resolves/rejects
   var state = 'pending'; // current pending|resolved|rejected promise state
-  var resolvers = []; // queued functions to be called on success
-  var rejectors = []; // queued functions to be called on failure
+  var resolvers = []; // queued functions to be called once resolved
+  var rejectors = []; // queued functions to be called once rejected
 
   function resolve (val) {
     // prevents state from being changed once resolved/rejected, as per A+ spec
     if (state !== 'pending') return;
 
-    value = val; // store resolve value for future .then calls
-    state = 'resolved';
-
+    if (val.then) {
+      //...
+    }
+    else {
+      value = val; // store resolve value for future .then calls
+      state = 'resolved';
+    }
     // if there are resolvers waiting to be called, call each one
     if (resolvers.length) {
-      resolvers.forEach( callback => callback() );
+      resolvers.forEach( callback => setImmediate(callback) );
     }
   }
 
@@ -25,39 +29,48 @@ function MyPromise (executor) {
     state = 'rejected';
 
     if (rejectors.length) {
-      rejectors.forEach( callback => callback() );
+      rejectors.forEach( callback => setImmediate(callback) );
     }
   }
 
   // This is where the magic happens
   this.then = function (successCB, failureCB) {
-    return new MyPromise( function (resolve, reject) {
+    return new MyPromise( function (thenResolve, thenReject) {
+
       if (state = 'pending') {
-        resolvers.push( () => {
-          setImmediate( () => resolve(successCB(value)) );
-        });
+        resolvers.push( attempt(successCB, thenResolve, thenReject) );
 
         if (failureCB) {
-          rejectors.push( () => {
-            setImmediate( () => reject(failureCB(value)) );
-          });
+          rejectors.push( () => thenReject(failureCB(value)) );
         }
         else {
-          rejectors.push( () => {
-            setImmediate( () => reject(new Error(value)) );
-          });
+          rejectors.push( () => thenReject(new Error(value)) );
         }
       }
       else if (state === 'resolved') {
-        setImmediate( () => resolve(successCB(value)) );
+        setImmediate( attempt(successCB, thenResolve, thenReject) );
       }
       else if (state === 'rejected') {
         setImmediate( () => {
-          if (failureCB) reject(failureCB(value));
-          else reject(new Error(value));
+          if (failureCB) thenReject(failureCB(value));
+          else thenReject(new Error(value));
         });
       }
     });
+  }
+
+  // Packages a function call in a try/catch to decide if res should be called
+  // with the return value, or if rej should be called with the thrown error.
+  // Wraps the whole thing in an anonymous function and returns it.
+  function attempt (func, res, rej) {
+    return () => {
+      try {
+        res(func(value)); // calls func with the value of the current promise
+      }
+      catch (e) {
+        rej(e);
+      }
+    }
   }
 
   // Finally, run the function which was passed to the constructor
@@ -111,7 +124,7 @@ function setTimeoutPromise (delay, callback) {
   });
 }
 
-setTimeoutPromise(3000, () => 1012121323243435454)
+setTimeoutPromise(3000, () => 12345)
 .then( val => console.log(`\nsetTimeoutPromise return value:`, val));
 
 function truncate (value, numDigits) {
