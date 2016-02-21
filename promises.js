@@ -6,10 +6,11 @@ function MyPromise (executor) {
   var rejectors = []; // queued functions to be called once rejected
 
   function resolve (val) {
-    // prevents state from being changed once resolved/rejected, as per A+ spec
+    // prevents state from being changed once resolved/rejected
     if (state !== 'pending') return;
 
-    if (val.then) { // if val is a promise, handle resolution within its then()
+    // if val is promise-like, handle resolution within its then()
+    if (typeof val.then === 'function') {
       val.then(
         newVal => {
           value = newVal;
@@ -38,7 +39,7 @@ function MyPromise (executor) {
   function reject (val) {
     if (state !== 'pending') return;
 
-    if (val.then) {
+    if (typeof val.then === 'function') {
       val.then(
         newVal => {
           resolve(newVal);
