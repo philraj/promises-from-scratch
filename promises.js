@@ -83,6 +83,22 @@ function MyPromise (executor) {
       }
     });
   }
+  //
+  // function attempt (callback, onSuccess, onException) {
+  //   if (typeof callback === 'function') {
+  //     return () => {
+  //       try {
+  //         onSuccess(callback(value));
+  //       }
+  //       catch (e) {
+  //         onException ? onException(e) : onSuccess(e);
+  //       }
+  //     }
+  //   }
+  //   else {
+  //     return () => onSuccess(value);
+  //   }
+  // }
   // Finally, run the function which was passed to the constructor
   executor(resolve, reject);
 }
@@ -93,7 +109,7 @@ var promise = new MyPromise( function (resolve, reject) {
     var val = Math.random();
     console.log(`Promise seeded with: ${val}`);
 
-    if (val > 0.5) {
+    if (val > 0.3) {
       setTimeout(
         () => resolve(val),
         Math.random() * 1000 + 500
