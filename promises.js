@@ -1,6 +1,6 @@
 // MyPromise constructor
 function MyPromise (executor) {
-  var value; // value to which the promise resolves/rejects
+  var value; // promise is resolved/rejected with this value/reason
   var state = 'pending'; // current pending|resolved|rejected promise state
   var resolvers = []; // queued functions to be called once resolved
   var rejectors = []; // queued functions to be called once rejected
@@ -9,68 +9,104 @@ function MyPromise (executor) {
     // prevents state from being changed once resolved/rejected, as per A+ spec
     if (state !== 'pending') return;
 
-    if (val.then) {
-      //...
+    if (val.then) { // if val is a promise, handle resolution within its then()
+      val.then(
+        newVal => {
+          value = newVal;
+          state = 'resolved';
+
+          // if there are resolvers waiting to be called, call each one
+          if (resolvers.length) {
+            resolvers.forEach( callback => setImmediate(callback) );
+          }
+        },
+        err => {
+          reject(err);
+        }
+      );
     }
     else {
-      value = val; // store resolve value for future .then calls
+      value = val;
       state = 'resolved';
-    }
-    // if there are resolvers waiting to be called, call each one
-    if (resolvers.length) {
-      resolvers.forEach( callback => setImmediate(callback) );
+
+      if (resolvers.length) {
+        resolvers.forEach( callback => setImmediate(callback) );
+      }
     }
   }
 
   function reject (val) {
     if (state !== 'pending') return;
 
-    value = val;
-    state = 'rejected';
+    if (val.then) {
+      val.then(
+        newVal => {
+          resolve(newVal);
+        },
+        err => {
+          value = err;
+          state = 'rejected';
 
-    if (rejectors.length) {
-      rejectors.forEach( callback => setImmediate(callback) );
+          if (rejectors.length) {
+            rejectors.forEach( callback => setImmediate(callback) );
+          }
+        }
+      );
+    }
+    else {
+      value = val;
+      state = 'rejected';
+
+      if (rejectors.length) {
+        rejectors.forEach( callback => setImmediate(callback) );
+      }
     }
   }
 
   // This is where the magic happens
   this.then = function (successCB, failureCB) {
     return new MyPromise( function (thenResolve, thenReject) {
+      var resolver, rejector;
+
+      if (typeof successCB === 'function') {
+        resolver = () => {
+          try {
+            thenResolve(successCB(value));
+          }
+          catch (e) {
+            thenReject(e);
+          }
+        }
+      }
+      else {
+        resolver = () => thenResolve(value);
+      }
+
+      if (typeof failureCB === 'function') {
+        rejector = () => {
+          try {
+            thenReject(failureCB(value));
+          }
+          catch (e) {
+            thenReject(e);
+          }
+        }
+      }
+      else {
+        rejector = () => thenReject(value);
+      }
 
       if (state = 'pending') {
-        resolvers.push( attempt(successCB, thenResolve, thenReject) );
-
-        if (failureCB) {
-          rejectors.push( () => thenReject(failureCB(value)) );
-        }
-        else {
-          rejectors.push( () => thenReject(new Error(value)) );
-        }
+        resolvers.push(resolver);
+        rejectors.push(rejector);
       }
       else if (state === 'resolved') {
-        setImmediate( attempt(successCB, thenResolve, thenReject) );
+        setImmediate(resolver);
       }
       else if (state === 'rejected') {
-        setImmediate( () => {
-          if (failureCB) thenReject(failureCB(value));
-          else thenReject(new Error(value));
-        });
+        setImmediate(rejector);
       }
     });
-  }
-
-  // Packages a function call in a try/catch to decide if res should be called
-  // with the return value, or if rej should be called with the thrown error.
-  // Wraps the whole thing in an anonymous function and returns it.
-  function attempt (func, res, rej) {
-    return () => {
-      try {
-        res(func(value)); // calls func with the value of the current promise
-      }
-      catch (e) {
-        rej(e);
-      }
-    }
   }
 
   // Finally, run the function which was passed to the constructor
@@ -79,36 +115,51 @@ function MyPromise (executor) {
 
 // Creating my promise
 var promise = new MyPromise( function (resolve, reject) {
-  var val = Math.random();
-  console.log(`Promise seeded with value: ` + val);
+  try {
+    var val = Math.random();
+    console.log(`Promise seeded with: ${val}`);
 
-  if (val > 0.5) {
-    setTimeout(
-      () => resolve(val),
-      Math.random() * 2000
-    );
+    if (val > 0.5) {
+      setTimeout(
+        () => resolve(val),
+        Math.random() * 1000 + 500
+      );
+    }
+    else {
+      setTimeout(
+        () => { throw `Rejected, value too low: ${val}` },
+        Math.random() * 1000 + 500
+      );
+    }
   }
-  else {
-    setTimeout(
-      () => reject(val),
-      Math.random() * 2000
-    );
+  catch (e) {
+    reject(e);
   }
 });
 
 // Using my promise chain
 promise.then(
   val => {
-    console.log(`Resolved:`, val);
-    return val;
-  },
-  val => {
-    console.log(`Rejected:`, val);
-    return val;
+    var truncated = truncate(val, 3);
+    console.log(`Truncated resolve value: ${truncated}`);
+    return truncated;
   }
 ).then(
-  val => console.log(`Truncated resolve value:`, truncate(val, 2)),
-  val => console.log(`Truncated reject value:`, truncate(val, 2))
+  val => {
+    var delay = Math.random() * 1000 + 500;
+
+    return setTimeoutPromise(delay, () => {
+      if (delay > 1000) throw `Delay too high: ${delay} ms`;
+      return val;
+    });
+  }
+).then(
+  val => {
+    console.log(`Resolve value * 1000 = ${val * 1000}`);
+  },
+  err => {
+    console.log(err);
+  }
 );
 
 // Version of setTimeout with parameters reversed, which is wrapped in a
@@ -117,15 +168,17 @@ promise.then(
 // value would be lost, forcing you to send the value to a second callback.
 function setTimeoutPromise (delay, callback) {
   return new MyPromise( function (resolve, reject) {
-    setTimeout(
-      () => resolve( callback() ),
-      delay
-    );
+    try {
+      setTimeout(
+        () => resolve( callback() ),
+        delay
+      );
+    }
+    catch (e) {
+      reject(e);
+    }
   });
 }
-
-setTimeoutPromise(3000, () => 12345)
-.then( val => console.log(`\nsetTimeoutPromise return value:`, val));
 
 function truncate (value, numDigits) {
   var str = value.toString();
