@@ -77,7 +77,9 @@ function MyPromise (executor) {
   //   -> attempt(failureCB, thenReject, thenReject);
   // since for the failureCB, thenReject must be called no matter what.
   function attempt (callback, resolveHandler, rejectHandler) {
-    rejectHandler = rejectHandler || resolveHandler;
+    if (rejectHandler === undefined) {
+      rejectHandler = resolveHandler;
+    }
 
     if (typeof callback === 'function') {
       return () => {
