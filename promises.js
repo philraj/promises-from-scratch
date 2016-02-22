@@ -10,7 +10,12 @@ function MyPromise (executor) {
     if (state !== 'pending') return;
     // if val is promise-like, handle resolution within its then()
     if (typeof val.then === 'function') {
-      val.then(resolve, reject);
+      try {
+        val.then(resolve, reject);
+      }
+      catch (e) {
+        reject(e);
+      }
       return;
     }
 
@@ -26,7 +31,12 @@ function MyPromise (executor) {
     if (state !== 'pending') return;
 
     if (typeof val.then === 'function') {
-      val.then(resolve, reject);
+      try {
+        val.then(resolve, reject);
+      }
+      catch (e) {
+        reject(e);
+      }
       return;
     }
 
@@ -41,37 +51,10 @@ function MyPromise (executor) {
   // This is where the magic happens
   this.then = function (successCB, failureCB) {
     return new MyPromise( function (thenResolve, thenReject) {
-      var resolver, rejector;
+      var resolver = attempt(successCB, thenResolve, thenReject);
+      var rejector = attempt(failureCB, thenReject);
 
-      if (typeof successCB === 'function') {
-        resolver = () => {
-          try {
-            thenResolve(successCB(value));
-          }
-          catch (e) {
-            thenReject(e);
-          }
-        }
-      }
-      else {
-        resolver = () => thenResolve(value);
-      }
-
-      if (typeof failureCB === 'function') {
-        rejector = () => {
-          try {
-            thenReject(failureCB(value));
-          }
-          catch (e) {
-            thenReject(e);
-          }
-        }
-      }
-      else {
-        rejector = () => thenReject(value);
-      }
-
-      if (state = 'pending') {
+      if (state === 'pending') {
         resolvers.push(resolver);
         rejectors.push(rejector);
       }
@@ -83,25 +66,39 @@ function MyPromise (executor) {
       }
     });
   }
+
+  // Returns a wrapper function which will try to call the callback with the
+  // value of the first promise, and then resolve/reject the second promise
+  // with the return value of that call. If the callback throws an error, the
+  // second promise will be rejected with the thrown message.
   //
-  // function attempt (callback, onSuccess, onException) {
-  //   if (typeof callback === 'function') {
-  //     return () => {
-  //       try {
-  //         onSuccess(callback(value));
-  //       }
-  //       catch (e) {
-  //         onException ? onException(e) : onSuccess(e);
-  //       }
-  //     }
-  //   }
-  //   else {
-  //     return () => onSuccess(value);
-  //   }
-  // }
+  // If rejectHandler was not passed, it means the resolveHander should be
+  // used as the rejectHandler. This avoids having to call the function as:
+  //   -> attempt(failureCB, thenReject, thenReject);
+  // since for the failureCB, thenReject must be called no matter what.
+  function attempt (callback, resolveHandler, rejectHandler) {
+    rejectHandler = rejectHandler || resolveHandler;
+
+    if (typeof callback === 'function') {
+      return () => {
+        try {
+          resolveHandler(callback(value));
+        }
+        catch (e) {
+          rejectHandler(e);
+        }
+      }
+    }
+    else {
+      return () => resolveHandler(value);
+    }
+  }
+
   // Finally, run the function which was passed to the constructor
   executor(resolve, reject);
 }
+
+
 
 // Creating my promise
 var promise = new MyPromise( function (resolve, reject) {
