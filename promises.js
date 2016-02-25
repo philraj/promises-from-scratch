@@ -8,10 +8,13 @@ function MyPromise (executor) {
   function resolve (val) {
     // prevents state from being changed once resolved/rejected
     if (state !== 'pending') return;
-    // if val is promise-like, handle resolution within its then()
-    if (typeof val.then === 'function') {
+    // If val is promise-like, handle resolution within its then().
+    // Store reference to val.then before checking and calling it, in case
+    // val.then is an accessor property.
+    var thenRef = val.then;
+    if (typeof thenRef === 'function') {
       try {
-        val.then(resolve, reject);
+        thenRef.bind(val, resolve, reject);
       }
       catch (e) {
         reject(e);
@@ -30,9 +33,10 @@ function MyPromise (executor) {
   function reject (val) {
     if (state !== 'pending') return;
 
-    if (typeof val.then === 'function') {
+    var thenRef = val.then;
+    if (typeof thenRef === 'function') {
       try {
-        val.then(resolve, reject);
+        thenRef.bind(val, resolve, reject);
       }
       catch (e) {
         reject(e);
