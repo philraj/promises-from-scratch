@@ -14,7 +14,7 @@ function MyPromise (executor) {
     var thenRef = val.then;
     if (typeof thenRef === 'function') {
       try {
-        thenRef.bind(val, resolve, reject);
+        thenRef.call(val, resolve, reject);
       }
       catch (e) {
         reject(e);
@@ -36,7 +36,7 @@ function MyPromise (executor) {
     var thenRef = val.then;
     if (typeof thenRef === 'function') {
       try {
-        thenRef.bind(val, resolve, reject);
+        thenRef.call(val, resolve, reject);
       }
       catch (e) {
         reject(e);
